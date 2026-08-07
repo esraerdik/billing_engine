@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Kullanıcı Paneli{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// İstemci tarafı hızlı doğrulama: "Son Enerji", "İlk Enerji"'den küçük
+// olamaz. Bu, kullanıcıya sunucuya gitmeden anında geri bildirim verir;
+// asıl/otoriter doğrulama sunucu tarafında (billing.services) tekrar
+// yapılır — bkz. InvalidEnergyReadingError.
+document.addEventListener("DOMContentLoaded", function () {
+    var form = document.querySelector("#apartmentTable")
+        ? document.querySelector("#apartmentTable").closest("form")
+        : null;
+    if (!form) {
+        return;
+    }
+    form.addEventListener("submit", function (event) {
+        var startInputs = form.querySelectorAll('input[name^="energy_start_"]');
+        for (var i = 0; i < startInputs.length; i++) {
+            var startInput = startInputs[i];
+            var apartmentId = startInput.name.replace("energy_start_", "");
+            var endInput = form.querySelector('input[name="energy_end_' + apartmentId + '"]');
+            if (!endInput || startInput.value === "" || endInput.value === "") {
+                continue;
+            }
+            if (parseFloat(endInput.value) < parseFloat(startInput.value)) {
+                event.preventDefault();
+                var row = startInput.closest("tr");
+                var unitCell = row ? row.querySelector("td") : null;
+                var unitLabel = unitCell ? unitCell.textContent : "";
+                var validationMessage =
+                    "\u201c" + unitLabel + "\u201d dairesi i\u00e7in Son Enerji, " +
+                    "\u0130lk Enerji\u2019den k\u00fc\u00e7\u00fck olamaz.";
+                window.AppUI.showFieldError(endInput, validationMessage);
+                window.AppUI.showToast(validationMessage, "error");
+                endInput.scrollIntoView({ behavior: "smooth", block: "center" });
+                endInput.focus({ preventScroll: true });
+                return;
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
+
+{% block content %}
+
+<div class="container">
+
+    <div class="header">
+
+        <h2>Merkezi Isıtma Gider Paylaşım Sistemi</h2>
+
+        <a href="{% url 'logout' %}" class="logout-btn">
+            Çıkış Yap
+        </a>
+
+    </div>
+
+    {% if error %}
+    <div
+        class="error-message"
+        data-toast-message="{{ error }}"
+        data-toast-level="error">
+          <span style="font-size:28px;">⚠️</span>
+          <span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    {% if meter_alerts %}
+    <div class="card">
+        <h3>Sayaç Uyarıları</h3>
+        {% for alert in meter_alerts %}
+        <div class="error-message" {% if alert.severity == "critical" %}style="background-color:#fee2e2;color:#991b1b;border-color:#dc2626;"{% endif %}>
+            <span>{{ alert.message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if complexes|length > 1 %}
+    <div class="card">
+        <form method="get">
+            <div class="row" style="margin-bottom:0;">
+                <div class="field">
+                    <label>Apartman</label>
+                    <select name="complex_id" onchange="this.form.submit()">
+                        {% for c in complexes %}
+                        <option value="{{ c.id }}" {% if complex and c.id == complex.id %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    {% if can_manage_apartments and complex %}
+    <div class="card">
+
+        <div class="table-header">
+            <h3>Daire Yönetimi — {{ complex.name }}</h3>
+        </div>
+
+        <form method="post" action="{% url 'add_apartment' %}">
+            {% csrf_token %}
+            <input type="hidden" name="complex_id" value="{{ complex.id }}">
+
+            <div class="row">
+
+                <div class="field">
+                    <label>Daire No</label>
+                    <input type="text" name="unit_no" required>
+                </div>
+
+                <div class="field">
+                    <label>Alan (m²)</label>
+                    <input type="number" step="0.01" name="area_m2" required>
+                </div>
+
+                <div class="field">
+                    <label>Sakin Adı (opsiyonel)</label>
+                    <input type="text" name="resident_name">
+                </div>
+
+            </div>
+
+            <div class="button-area">
+                <button type="submit" class="add-btn">+ Daire Ekle</button>
+            </div>
+
+        </form>
+
+        <div class="table-scroll">
+        <table>
+            <thead>
+            <tr>
+                <th>Daire No</th>
+                <th>Alan (m²)</th>
+                <th>Sakin</th>
+                <th>Durum</th>
+                <th>İşlem</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for apt in manage_apartments %}
+            <tr>
+                <td>{{ apt.unit_no }}</td>
+                <td>{{ apt.area_m2 }}</td>
+                <td>{{ apt.resident_name|default:"—" }}</td>
+                <td>{{ apt.is_active|yesno:"Aktif,Pasif" }}</td>
+                <td>
+                    <a href="{% url 'edit_apartment' apt.apartment_id %}">
+                        <button type="button" class="approve-btn">Düzenle</button>
+                    </a>
+                    <form
+                        method="post"
+                        action="{% url 'delete_apartment' apt.apartment_id %}"
+                        style="display:inline;"
+                        data-confirm-form
+                        data-confirm-title="Silme Onayı"
+                        data-confirm-message="“{{ apt.unit_no }}” dairesini silmek istediğinize emin misiniz?"
+                        data-confirm-label="Evet, Sil">
+                        {% csrf_token %}
+                        <button type="submit" class="reject-btn">Sil</button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">Bu bina için henüz daire eklenmemiş.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+
+    </div>
+    {% endif %}
+
+    <form method="post">
+
+        {% csrf_token %}
+        {% if complex %}
+        <input type="hidden" name="complex_id" value="{{ complex.id }}">
+        {% endif %}
+
+        <div class="card">
+
+            <h3>Hesaplama Bilgileri</h3>
+
+            <div class="row">
+
+                <div class="field">
+
+                    <label>Fatura Aralığı — Başlangıç</label>
+
+                    <input
+                            type="date"
+                            name="window_start"
+                            value="{{ window_start }}"
+                            required>
+
+                </div>
+
+                <div class="field">
+
+                    <label>Fatura Aralığı — Bitiş</label>
+
+                    <input
+                            type="date"
+                            name="window_end"
+                            value="{{ window_end }}"
+                            required>
+
+                </div>
+
+            </div>
+
+            <div class="row">
+
+                <div class="field">
+
+                    <label>Toplam Fatura</label>
+
+                    <input
+                            type="number"
+                            step="0.01"
+                            name="bill"
+                            value="{{ bill }}"
+                            required>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="card">
+
+            <div class="table-header">
+
+                <h3>Daire Bilgileri{% if complex %} — {{ complex.name }}{% endif %}</h3>
+
+            </div>
+
+            <div class="table-scroll">
+            <table id="apartmentTable">
+
+                <thead>
+
+                <tr>
+
+                    <th>Daire</th>
+                    <th>Sakin</th>
+                    <th>Alan (m²)</th>
+                    <th>İlk Enerji</th>
+                    <th>Son Enerji</th>
+
+                </tr>
+
+                </thead>
+
+                <tbody id="tableBody">
+
+                {% for apt in apartments %}
+                <tr>
+
+                    <td>{{ apt.unit_no }}</td>
+
+                    <td>{{ apt.resident_name|default:"—" }}</td>
+
+                    <td>{{ apt.area_m2 }}</td>
+
+                    <td>
+
+                        <input
+                                type="number"
+                                step="0.01"
+                                name="energy_start_{{ apt.apartment_id }}"
+                                title="İlk Enerji (Başlangıç Endeksi)"
+                                required>
+
+                    </td>
+
+                    <td>
+
+                        <input
+                                type="number"
+                                step="0.01"
+                                name="energy_end_{{ apt.apartment_id }}"
+                                title="Son Enerji (Bitiş Endeksi)"
+                                required>
+
+                    </td>
+
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5">Aktif daire kaydı bulunamadı.</td>
+                </tr>
+                {% endfor %}
+
+                </tbody>
+
+            </table>
+            </div>
+
+            <div class="button-area">
+
+                <button
+                        type="submit"
+                        class="calculate-btn"
+                        {% if not apartments %}disabled{% endif %}>
+
+                    Hesapla
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </form>
+
+    {% if results %}
+
+    <div class="card">
+
+        <div class="table-header">
+
+            <h3>Sonuçlar</h3>
+
+            {% if billing_run_id %}
+            <a href="{% url 'download_invoices_zip' run_id=billing_run_id %}" class="add-btn">
+                Tüm PDF'leri Oluştur (ZIP)
+            </a>
+            {% endif %}
+
+        </div>
+
+        <div class="table-scroll">
+        <table>
+
+            <thead>
+
+            <tr>
+
+                <th>Daire</th>
+                <th>Sabit</th>
+                <th>Tüketim</th>
+                <th>Toplam</th>
+                <th>İşlem</th>
+
+            </tr>
+
+            </thead>
+
+            <tbody>
+
+            {% for apartment in results %}
+
+            <tr>
+
+                <td>{{ apartment.apartment_id }}</td>
+                <td>{{ apartment.fixed_share|floatformat:2 }}</td>
+                <td>{{ apartment.consumption_share|floatformat:2 }}</td>
+                <td>{{ apartment.total_payable|floatformat:2 }}</td>
+                <td>
+                    {% if billing_run_id %}
+                    <a href="{% url 'download_invoice_pdf' run_id=billing_run_id apartment_id=apartment.apartment_id %}" class="add-btn">
+                        PDF İndir
+                    </a>
+                    {% endif %}
+                </td>
+
+            </tr>
+
+            {% endfor %}
+
+            </tbody>
+
+        </table>
+        </div>
+
+    </div>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}

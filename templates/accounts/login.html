@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Giriş Yap{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/login.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="login-page">
+
+    <div class="login-card">
+
+        <div class="logo-area">
+            <div class="logo-circle">
+                🏢
+            </div>
+
+            <h1>Merkezi Isıtma</h1>
+            <h2>Gider Paylaşım Sistemi</h2>
+        </div>
+
+        <form method="post">
+
+    {% csrf_token %}
+
+    <div class="input-group">
+
+        <label>Kullanıcı Adı</label>
+
+        <input
+                type="text"
+                name="username"
+                placeholder="Kullanıcı adını giriniz"
+                required>
+
+    </div>
+
+    <div class="input-group">
+
+        <label>Şifre</label>
+
+        <input
+                type="password"
+                name="password"
+                placeholder="Şifreyi giriniz"
+                required>
+
+    </div>
+
+    {% if error %}
+
+    <span
+        hidden
+        data-toast-message="{{ error }}"
+        data-toast-level="error"
+        data-toast-field="username"></span>
+
+    {% endif %}
+
+    <button class="login-button">
+
+        Giriş Yap
+
+    </button>
+
+
+        </form>
+
+    </div>
+
+</div>
+
+{% endblock %}

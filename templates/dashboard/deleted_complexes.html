@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Silinen Apartmanlar{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h2>Silinen Apartmanlar</h2>
+        <a href="{% url 'admin_dashboard' %}">
+            <button type="button" class="add-btn">Admin Paneli</button>
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Apartman Adı</th>
+                        <th>Adres</th>
+                        <th>Silinme Tarihi</th>
+                        <th>Silen Yönetici</th>
+                        <th>İşlem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in deleted_complexes %}
+                    <tr>
+                        <td>{{ c.name }}</td>
+                        <td>{{ c.address|default:"—" }}</td>
+                        <td>{{ c.deleted_at|date:"d.m.Y H:i" }}</td>
+                        <td>{{ c.deleted_by.username|default:"—" }}</td>
+                        <td>
+                            <form
+                                method="post"
+                                action="{% url 'restore_deleted_complex' c.id %}"
+                                style="display:inline;"
+                                data-confirm-form
+                                data-confirm-title="Geri Yükleme Onayı"
+                                data-confirm-message="“{{ c.name }}” apartmanını geri yüklemek istediğinize emin misiniz?"
+                                data-confirm-label="Evet, Geri Yükle"
+                                data-confirm-variant="success">
+                                {% csrf_token %}
+                                <button type="submit" class="add-btn">Geri Yükle</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5">Silinmiş apartman bulunmuyor.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

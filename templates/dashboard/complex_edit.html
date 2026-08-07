@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Bina Düzenle{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h2>Bina Düzenle — {{ complex.name }}</h2>
+        <a href="{% url 'admin_dashboard' %}">
+            <button type="button" class="logout-btn">Geri Dön</button>
+        </a>
+    </div>
+
+    <div class="card">
+        <form method="post">
+            {% csrf_token %}
+            <div class="row">
+                <div class="field">
+                    <label>Bina Adı</label>
+                    <input type="text" name="name" value="{{ complex.name }}" required>
+                </div>
+                <div class="field">
+                    <label>Adres (opsiyonel)</label>
+                    <input type="text" name="address" value="{{ complex.address }}">
+                </div>
+            </div>
+            <div class="button-area">
+                <button type="submit" class="add-btn">Kaydet</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

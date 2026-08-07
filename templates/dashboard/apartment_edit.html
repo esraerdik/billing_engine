@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Daire Düzenle{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="container">
+
+    <div class="header">
+        <h2>Daire Düzenle — {{ apartment.unit_no }}</h2>
+        <a href="{% url 'user_dashboard' %}?complex_id={{ apartment.complex_id }}">
+            <button class="logout-btn">Geri Dön</button>
+        </a>
+    </div>
+
+    <div class="card">
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="row">
+
+                <div class="field">
+                    <label>Bina</label>
+                    <select name="complex_id" required>
+                        {% for c in complexes %}
+                        <option value="{{ c.id }}" {% if c.id == apartment.complex_id %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label>Daire No</label>
+                    <input type="text" name="unit_no" value="{{ apartment.unit_no }}" required>
+                </div>
+
+                <input type="hidden" name="block" value="{{ apartment.block }}">
+
+                <div class="field">
+                    <label>Alan (m²)</label>
+                    <input type="number" step="0.01" name="area_m2" value="{{ apartment.area_m2 }}" required>
+                </div>
+
+                <div class="field">
+                    <label>Sakin Adı (opsiyonel)</label>
+                    <input type="text" name="resident_name" value="{{ resident_name|default:'' }}">
+                </div>
+
+                <div class="field">
+                    <label>Aktif mi?</label>
+                    <input type="checkbox" name="is_active" {% if apartment.is_active %}checked{% endif %} style="width:20px;height:20px;align-self:flex-start;">
+                </div>
+
+            </div>
+
+            <div class="button-area">
+                <button type="submit" class="add-btn">Kaydet</button>
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+{% endblock %}

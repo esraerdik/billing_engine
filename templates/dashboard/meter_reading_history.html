@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Sayaç Okuma Geçmişi{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h2>Sayaç Okuma Geçmişi</h2>
+        <a href="{% url 'admin_dashboard' %}">
+            <button type="button" class="add-btn">Admin Paneli</button>
+        </a>
+    </div>
+
+    <div class="card">
+        <form method="get">
+            <div class="row">
+                <div class="field">
+                    <label>Başlangıç Tarihi</label>
+                    <input type="date" name="start_date" value="{{ filters.start_date }}">
+                </div>
+                <div class="field">
+                    <label>Bitiş Tarihi</label>
+                    <input type="date" name="end_date" value="{{ filters.end_date }}">
+                </div>
+                <div class="field">
+                    <label>Bina</label>
+                    <select name="complex">
+                        <option value="">Tümü</option>
+                        {% for c in complexes %}
+                        <option value="{{ c.id }}" {% if filters.complex == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Durum</label>
+                    <select name="status">
+                        <option value="">Tümü</option>
+                        {% for value, label in statuses %}
+                        <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="button-area">
+                <button type="submit" class="approve-btn">Filtrele</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tarih</th><th>Bina</th><th>Daire</th><th>Sayaç</th>
+                        <th>Enerji</th><th>Durum</th><th>Retry</th><th>Hata</th>
+                        <th>Okuma Süresi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in page %}
+                    <tr>
+                        <td>{{ row.read_at|date:"d.m.Y H:i:s" }}</td>
+                        <td>{{ row.complex.name }}</td>
+                        <td>{{ row.apartment.unit_no }}</td>
+                        <td>{{ row.device_identifier|default:row.device.modbus_address }}</td>
+                        <td>{% if row.energy_value is not None %}{{ row.energy_value }} Wh{% else %}—{% endif %}</td>
+                        <td>{{ row.get_status_display }}</td>
+                        <td>{{ row.retry_number }}</td>
+                        <td>
+                            {% if row.error_type %}{{ row.get_error_type_display }}{% endif %}
+                            {% if row.error_description %} — {{ row.error_description }}{% endif %}
+                            {% if not row.error_type and not row.error_description %}—{% endif %}
+                        </td>
+                        <td>{% if row.duration_ms is not None %}{{ row.duration_ms }} ms{% else %}—{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="9">Sayaç okuma kaydı bulunamadı.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="button-area">
+            {% if page.has_previous %}
+            <a class="approve-btn" href="?page={{ page.previous_page_number }}&start_date={{ filters.start_date }}&end_date={{ filters.end_date }}&complex={{ filters.complex }}&status={{ filters.status }}">Önceki</a>
+            {% endif %}
+            <span style="padding:10px;">Sayfa {{ page.number }} / {{ page.paginator.num_pages }}</span>
+            {% if page.has_next %}
+            <a class="approve-btn" href="?page={{ page.next_page_number }}&start_date={{ filters.start_date }}&end_date={{ filters.end_date }}&complex={{ filters.complex }}&status={{ filters.status }}">Sonraki</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Merkezi Isıtma Gider Paylaşım Sistemi{% endblock %}</title>
+
+    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20260807-ui">
+
+    {% block extra_css %}{% endblock %}
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet">
+
+<script src="{% static 'js/scroll_restore.js' %}" defer></script>
+</head>
+
+{% block extra_js %}{% endblock %}
+
+<body>
+
+{% block content %}
+{% endblock %}
+
+<div class="app-toast-container" data-toast-container aria-live="polite" aria-atomic="false">
+    {% for message in messages %}
+    <div
+        class="app-toast app-toast--{{ message.level_tag|default:'info' }}"
+        data-app-toast
+        data-toast-level="{{ message.level_tag|default:'info' }}"
+        data-toast-tags="{{ message.tags }}"
+        role="status">
+        <span class="app-toast__icon" aria-hidden="true"></span>
+        <span class="app-toast__message">{{ message }}</span>
+        <button type="button" class="app-toast__close" data-toast-close aria-label="Bildirimi kapat">&times;</button>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="app-confirmation" data-confirm-modal hidden>
+    <div class="app-confirmation__backdrop" data-confirm-cancel></div>
+    <div
+        class="app-confirmation__dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="app-confirmation-title"
+        aria-describedby="app-confirmation-message">
+        <div class="app-confirmation__icon" aria-hidden="true">!</div>
+        <h3 id="app-confirmation-title" data-confirm-title>Silme Onayı</h3>
+        <p id="app-confirmation-message" data-confirm-message>
+            Bu kaydı silmek istediğinize emin misiniz?
+        </p>
+        <div class="app-confirmation__actions">
+            <button type="button" class="app-confirmation__cancel" data-confirm-cancel>İptal</button>
+            <button type="button" class="app-confirmation__accept" data-confirm-accept>Evet, Sil</button>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/ui_feedback.js' %}?v=20260807-ui3"></script>
+</body>
+</html>

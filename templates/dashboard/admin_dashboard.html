@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Admin Paneli{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="container">
+
+    <div class="header">
+
+        <h2>Admin Paneli</h2>
+
+        <a href="{% url 'deleted_users' %}">
+            <button class="approve-btn">Silinen Kullanıcılar</button>
+        </a>
+
+        <a href="{% url 'deleted_complexes' %}">
+            <button class="approve-btn">Silinen Apartmanlar</button>
+        </a>
+
+        <a href="{% url 'meter_reading_history' %}">
+            <button class="approve-btn">Sayaç Okuma Geçmişi</button>
+        </a>
+
+        <a href="{% url 'audit_logs' %}">
+            <button class="approve-btn">Sistem Logları</button>
+        </a>
+
+        <a href="{% url 'logout' %}">
+    <button class="logout-btn">
+        Çıkış Yap
+    </button>
+</a>
+
+    </div>
+
+    {% if meter_alerts %}
+    <div class="card">
+        <h3>Sayaç Uyarıları</h3>
+        {% for alert in meter_alerts %}
+        <div class="error-message" {% if alert.severity == "critical" %}style="background-color:#fee2e2;color:#991b1b;border-color:#dc2626;"{% endif %}>
+            <span>{{ alert.message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+
+        <h3>Bina Ekle</h3>
+
+        <form method="post" action="{% url 'add_complex' %}">
+            {% csrf_token %}
+
+            <div class="row">
+
+                <div class="field">
+                    <label>Bina Adı</label>
+                    <input type="text" name="name" required>
+                </div>
+
+                <div class="field">
+                    <label>Adres (opsiyonel)</label>
+                    <input type="text" name="address">
+                </div>
+
+            </div>
+
+            <div class="button-area">
+                <button type="submit" class="add-btn">+ Bina Ekle</button>
+            </div>
+
+        </form>
+
+        <div class="table-scroll">
+        <table>
+            <thead>
+            <tr>
+                <th>Ad</th>
+                <th>Adres</th>
+                <th>Oluşturulma</th>
+                <th>İşlem</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for c in complexes %}
+            <tr>
+                <td>{{ c.name }}</td>
+                <td>{{ c.address|default:"—" }}</td>
+                <td>{{ c.created_at|date:"d.m.Y H:i" }}</td>
+                <td>
+                    <a href="{% url 'edit_complex' c.id %}">
+                        <button type="submit" class="approve-btn">Düzenle</button>
+                    </a>
+                    <form
+                        method="post"
+                        action="{% url 'delete_complex' c.id %}"
+                        style="display:inline;"
+                        data-confirm-form
+                        data-confirm-title="Silme Onayı"
+                        data-confirm-message="“{{ c.name }}” binasını silmek istediğinize emin misiniz?"
+                        data-confirm-label="Evet, Sil">
+                        {% csrf_token %}
+                        <button type="submit" class="reject-btn">Sil</button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4">Henüz kayıt yok.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <h3>Kullanıcı Ekle</h3>
+
+        <form method="post" action="{% url 'add_user' %}">
+            {% csrf_token %}
+
+            <div class="row">
+
+                <div class="field">
+                    <label>Kullanıcı Adı</label>
+                    <input type="text" name="username" required autocomplete="off">
+                </div>
+
+                <div class="field">
+                    <label>Şifre</label>
+                    <input type="password" name="password" required autocomplete="new-password">
+                </div>
+
+                <div class="field">
+                    <label>Rol</label>
+                    <select name="role" required>
+                        {% for value, label in roles %}
+                        <option value="{{ value }}" {% if value == "user" %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="button-area">
+                <button type="submit" class="add-btn">+ Kullanıcı Ekle</button>
+            </div>
+
+        </form>
+
+        <div class="table-scroll">
+        <table>
+            <thead>
+            <tr>
+                <th>Kullanıcı Adı</th>
+                <th>Rol</th>
+                <th>Apartmanlar</th>
+                <th>Aktif</th>
+                <th>İşlem</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.username }}</td>
+                <td>{{ u.profile.get_role_display|default:"User" }}</td>
+                <td>{{ u.complex_label }}</td>
+                <td>{{ u.is_active|yesno:"Evet,Hayır" }}</td>
+                <td>
+                    <a href="{% url 'edit_user' u.id %}">
+                        <button type="button" class="approve-btn">Düzenle</button>
+                    </a>
+                    <form
+                        method="post"
+                        action="{% url 'delete_user' u.id %}"
+                        style="display:inline;"
+                        data-confirm-form
+                        data-confirm-title="Silme Onayı"
+                        data-confirm-message="“{{ u.username }}” kullanıcısını silmek istediğinize emin misiniz?"
+                        data-confirm-label="Evet, Sil">
+                        {% csrf_token %}
+                        <button type="submit" class="reject-btn">Sil</button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">Henüz kayıt yok.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <h3>Bekleyen Hesaplama İstekleri</h3>
+
+        <div class="table-scroll">
+        <table>
+
+            <thead>
+
+            <tr>
+
+                <th>Kullanıcı</th>
+                <th>Bina</th>
+                <th>Başlangıç</th>
+                <th>Bitiş</th>
+                <th>Talep Tarihi</th>
+                <th>İşlem</th>
+
+            </tr>
+
+            </thead>
+
+            <tbody>
+
+{% for req in requests %}
+
+<tr>
+
+    <td>{{ req.requested_by.username }}</td>
+    <td>{{ req.complex.name }}</td>
+    <td>{{ req.window_start_date|date:"d.m.Y"|default:"—" }}</td>
+    <td>{{ req.window_end_date|date:"d.m.Y"|default:"—" }}</td>
+    <td>{{ req.requested_at|date:"d.m.Y H:i" }}</td>
+
+    <td>
+
+        <a href="{% url 'approve' req.id %}">
+    <button class="approve-btn">
+        Onayla
+    </button>
+</a>
+
+<a href="{% url 'reject' req.id %}">
+    <button class="reject-btn">
+        Reddet
+    </button>
+</a>
+
+    </td>
+
+</tr>
+
+{% empty %}
+
+<tr>
+
+    <td colspan="6">
+        Bekleyen istek bulunmuyor.
+    </td>
+
+</tr>
+
+{% endfor %}
+
+</tbody>
+        </table>
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

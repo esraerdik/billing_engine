@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Kullanıcı Düzenle{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="container">
+
+    <div class="header">
+        <h2>Kullanıcı Düzenle — {{ target_user.username }}</h2>
+        <a href="{% url 'admin_dashboard' %}">
+            <button class="logout-btn">Geri Dön</button>
+        </a>
+    </div>
+
+    <div class="card">
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="row">
+
+                <div class="field">
+                    <label>Kullanıcı Adı</label>
+                    <input type="text" name="username" value="{{ target_user.username }}" required autocomplete="off">
+                </div>
+
+                <div class="field">
+                    <label>Yeni Şifre (opsiyonel)</label>
+                    <input type="password" name="new_password" autocomplete="new-password" placeholder="Değiştirmek istemiyorsanız boş bırakın">
+                </div>
+
+                <div class="field">
+                    <label>Rol</label>
+                    <select name="role" required>
+                        {% for value, label in roles %}
+                        <option value="{{ value }}" {% if value == target_user.profile.role %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {% if target_is_admin %}
+                    <input type="hidden" name="is_active" value="on">
+                {% else %}
+                    <div class="field">
+                        <label>Aktif mi?</label>
+                        <input type="checkbox" name="is_active" {% if target_user.is_active %}checked{% endif %} style="width:20px;height:20px;align-self:flex-start;">
+                    </div>
+                {% endif %}
+
+            </div>
+
+            <div class="row">
+
+                <div class="field">
+                    <label>Erişebileceği Apartmanlar (Admin rolü tüm apartmanları görür)</label>
+                    <div style="display:flex; flex-direction:column; gap:8px; border:1px solid #d9d9d9; border-radius:8px; padding:12px; max-height:220px; overflow-y:auto;">
+                        {% for c in complexes %}
+                        <label style="display:flex; align-items:center; gap:8px; font-weight:normal;">
+                            <input type="checkbox" name="complex_ids" value="{{ c.id }}" {% if c.id in assigned_complex_ids %}checked{% endif %} style="width:18px;height:18px;">
+                            {{ c.name }}
+                        </label>
+                        {% empty %}
+                        <span>Henüz tanımlı bina yok.</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="button-area">
+                <button type="submit" class="add-btn">Kaydet</button>
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+{% endblock %}
