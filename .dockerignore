@@ -1,0 +1,19 @@
+# Image'e gereksiz/hassas dosyaların girmesini önler (build context'i de küçültür).
+.git/
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.idea/
+.vscode/
+
+# Hassas: gerçek kullanıcı adı/hash'lenmiş şifre/audit geçmişi içerir.
+data_backup/
+db.sqlite3*
+.env
+
+# Runtime'da entrypoint.sh tarafından yeniden oluşturulur.
+staticfiles/

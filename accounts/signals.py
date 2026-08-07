@@ -21,6 +21,13 @@ from .models import UserProfile
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
-def create_user_profile(sender, instance, created, **kwargs) -> None:
-    if created:
+def create_user_profile(sender, instance, created, raw=False, **kwargs) -> None:
+    # `raw=True`: `loaddata` bir fixture yüklerken bu sinyali de tetikler
+    # ama o an referans bütünlüğü henüz garanti değildir (bkz. Django
+    # dokümantasyonu). Bu kontrol olmadan, fixture'daki her yeni User
+    # için burada bir UserProfile otomatik açılır ve fixture'ın KENDİ
+    # UserProfile kaydıyla `user_id` üzerinde UniqueViolation çakışması
+    # yaşanır — normal (raw olmayan) kullanıcı oluşturmada davranış
+    # değişmez.
+    if created and not raw:
         UserProfile.objects.get_or_create(user=instance)

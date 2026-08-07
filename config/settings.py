@@ -12,20 +12,28 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 
+import environ
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
+# Tüm ortam-bağımlı ayarlar (secret, DB kimlik bilgileri, debug, host
+# listesi) `.env` dosyasından okunur; kod içinde gizli bilgi TUTULMAZ.
+# `.env` repo'ya gitmez (bkz. .gitignore); yerel/Docker geliştirme için
+# gerçek değerlerle, sunucuda ise o ortama özel değerlerle doldurulur —
+# production'a taşırken bu dosya dışında hiçbir şey değişmez.
+env = environ.Env(
+    DEBUG=(bool, False),
+)
+environ.Env.read_env(BASE_DIR / ".env")
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-dx*%-_e_fe*e+g57&wlpf#(6w_=9d=n*x!842gjwgtr^*1-_*n'
+SECRET_KEY = env("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env.bool("DEBUG")
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
 
 # Application definition
@@ -47,6 +55,11 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Nginx henüz devrede değilken (ve nginx devredeyken de zararsız bir
+    # yedek olarak) static dosyaları doğrudan Django/gunicorn'dan servis
+    # eder — `DEBUG=False` olduğunda Django'nun kendisi static dosya
+    # sunmadığı için bu olmadan production'da admin paneli/CSS bozuk açılır.
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -64,6 +77,24 @@ ROOT_URLCONF = 'config.urls'
 # hata sayfası yerine kullanıcıyı dostane bir mesajla giriş ekranına geri
 # yönlendiriyoruz (bkz. accounts.views.csrf_failure_view).
 CSRF_FAILURE_VIEW = 'accounts.views.csrf_failure_view'
+
+# Nginx/başka bir reverse proxy arkasında, kendi domain'inden gelen
+# formları CSRF açısından güvenilir saymak için (bkz. Django CSRF_TRUSTED_ORIGINS
+# dokümantasyonu — Django 4+'te reverse-proxy senaryolarında zorunlu).
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
+# `DEBUG=False` (production) olduğunda otomatik devreye giren güvenlik
+# ayarları — ayrı bir env değişkenine gerek yok, mantıksal olarak DEBUG'a
+# bağlı: yerel/Docker geliştirmede DEBUG=True olduğundan bunlar kapalı
+# kalır (aksi halde düz HTTP üzerinden geliştirme yapılamaz).
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_SSL_REDIRECT = not DEBUG
+
+# Nginx/Render/Railway gibi bir reverse proxy SSL'i kendi üzerinde
+# sonlandırıp Django'ya düz HTTP ile iletir; bu header olmadan
+# `SECURE_SSL_REDIRECT=True` sonsuz yönlendirme döngüsüne yol açar.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 TEMPLATES = [
     {
@@ -88,8 +119,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env("DATABASE_NAME"),
+        'USER': env("DATABASE_USER"),
+        'PASSWORD': env("DATABASE_PASSWORD"),
+        'HOST': env("DATABASE_HOST"),
+        'PORT': env("DATABASE_PORT"),
     }
 }
 
@@ -133,6 +168,20 @@ STATIC_URL = 'static/'
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
+
+# `collectstatic`'in topladığı dosyaların yazıldığı klasör — Docker
+# imajında/production'da gunicorn+WhiteNoise (veya ileride nginx) buradan
+# servis eder. Git'e girmez (bkz. .gitignore).
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # `invoice_pdf` modülünün ürettiği daire bazlı PDF Gider Bildirimlerinin
 # yazıldığı kök klasör (bkz. invoice_pdf/service.py). Alt klasörler

@@ -16,9 +16,15 @@ env/
 
 # Django
 db.sqlite3
+db.sqlite3.pre-cleanup-backup
+staticfiles/
 
 # Environment
 .env
+
+# PostgreSQL geçiş yedeği: gerçek kullanıcı adı/hash'lenmiş şifre/audit
+# geçmişi içerir, ASLA git'e girmemeli.
+data_backup/
 
 # Logs
 *.log

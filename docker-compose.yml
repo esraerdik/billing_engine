@@ -1,0 +1,48 @@
+# Yerel/ortak geliştirme ortamı: `docker compose up --build` tek
+# komutla Django + PostgreSQL'i ayağa kaldırır.
+#
+# Bu dosya SADECE geliştirme kolaylığı için `web` servisinin komutunu
+# `runserver` (hot-reload) ile eziyor; production'da (Render/Railway/VPS)
+# bu compose dosyası hiç kullanılmaz — Dockerfile'ın kendi varsayılan
+# komutu (gunicorn) doğrudan çalışır. Yani "production'a taşırken kod
+# değişmeyecek" hedefi: image/Dockerfile aynı kalıyor, sadece bu yerel
+# orkestrasyon katmanı devreye girmiyor.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      # Tek doğruluk kaynağı `.env`'deki DATABASE_* değişkenleri — resmi
+      # postgres imajının beklediği POSTGRES_* isimlerine burada eşleniyor,
+      # değer ikinci kez tanımlanmıyor.
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    env_file:
+      - .env
+    volumes:
+      # Kaynak kod bind-mount: konteyneri yeniden build etmeden canlı
+      # kod değişikliği + runserver auto-reload.
+      - .:/app
+      # Üretilen PDF'ler container yeniden oluşturulsa/silinse de kaybolmasın.
+      - ./generated_invoices:/app/generated_invoices
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

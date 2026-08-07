@@ -7,3 +7,10 @@ pypdf==6.14.2
 
 # Toplu Excel (.xlsx) özeti (invoice_pdf.excel) için
 openpyxl==3.1.5
+
+# Production altyapısı: PostgreSQL sürücüsü, .env okuma, WSGI sunucusu,
+# static dosya servisi (nginx kurulana kadar/nginx'e ek olarak)
+psycopg[binary]==3.3.4
+django-environ==0.14.0
+gunicorn==26.0.0
+whitenoise==6.12.0
