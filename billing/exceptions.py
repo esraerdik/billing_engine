@@ -33,6 +33,41 @@ class InvalidBillingWindowError(BillingWindowError):
         )
 
 
+class SameBillingWindowDatesError(BillingWindowError):
+    """Başlangıç ve bitiş tarihi birbirine eşit olduğunda fırlatılır."""
+
+    def __init__(self, window_date: date) -> None:
+        self.window_date = window_date
+        super().__init__(
+            f"Fatura Aralığı başlangıç ve bitiş tarihi aynı olamaz "
+            f"({window_date:%d.%m.%Y})."
+        )
+
+
+class FutureBillingWindowEndError(BillingWindowError):
+    """Bitiş tarihi bugünden ileri (gelecekteki) bir tarih olduğunda fırlatılır."""
+
+    def __init__(self, window_end: date, today: date) -> None:
+        self.window_end = window_end
+        self.today = today
+        super().__init__(
+            f"Fatura Aralığı bitiş tarihi ({window_end:%d.%m.%Y}) gelecekte "
+            f"bir tarih olamaz (bugün: {today:%d.%m.%Y})."
+        )
+
+
+class FutureBillingWindowStartError(BillingWindowError):
+    """Başlangıç tarihi bugünden ileri (gelecekteki) bir tarih olduğunda fırlatılır."""
+
+    def __init__(self, window_start: date, today: date) -> None:
+        self.window_start = window_start
+        self.today = today
+        super().__init__(
+            f"Fatura Aralığı başlangıç tarihi ({window_start:%d.%m.%Y}) "
+            f"gelecekte bir tarih olamaz (bugün: {today:%d.%m.%Y})."
+        )
+
+
 # Not: Tarih aralığı çakışması artık bir HATA DEĞİLDİR. Daha önce burada
 # bulunan `OverlappingBillingPeriodError`, seçilen aralık geçmiş bir
 # faturalandırmayla (kısmen veya birebir) çakıştığında isteği sert biçimde

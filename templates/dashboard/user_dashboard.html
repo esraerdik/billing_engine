@@ -9,10 +9,13 @@
 
 {% block extra_js %}
 <script>
-// İstemci tarafı hızlı doğrulama: "Son Enerji", "İlk Enerji"'den küçük
-// olamaz. Bu, kullanıcıya sunucuya gitmeden anında geri bildirim verir;
-// asıl/otoriter doğrulama sunucu tarafında (billing.services) tekrar
-// yapılır — bkz. InvalidEnergyReadingError.
+// İstemci tarafı hızlı doğrulama: Fatura Aralığı başlangıç/bitiş tarihi
+// aynı olamaz, ne başlangıç ne bitiş tarihi gelecekte olabilir; "Son
+// Enerji" de "İlk Enerji"'den küçük olamaz. Bu, kullanıcıya sunucuya
+// gitmeden anında geri bildirim verir; asıl/otoriter doğrulama sunucu
+// tarafında (billing.services._validate_billing_window) tekrar yapılır —
+// bkz. SameBillingWindowDatesError, FutureBillingWindowStartError,
+// FutureBillingWindowEndError, InvalidEnergyReadingError.
 document.addEventListener("DOMContentLoaded", function () {
     var form = document.querySelector("#apartmentTable")
         ? document.querySelector("#apartmentTable").closest("form")
@@ -21,6 +24,39 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
     }
     form.addEventListener("submit", function (event) {
+        var windowStartInput = form.querySelector('input[name="window_start"]');
+        var windowEndInput = form.querySelector('input[name="window_end"]');
+        if (windowStartInput && windowEndInput && windowStartInput.value && windowEndInput.value) {
+            var todayIso = new Date().toISOString().slice(0, 10);
+            if (windowStartInput.value > todayIso) {
+                event.preventDefault();
+                var futureStartMessage = "Fatura Aralığı başlangıç tarihi gelecekte bir tarih olamaz.";
+                window.AppUI.showFieldError(windowStartInput, futureStartMessage);
+                window.AppUI.showToast(futureStartMessage, "error");
+                windowStartInput.scrollIntoView({ behavior: "smooth", block: "center" });
+                windowStartInput.focus({ preventScroll: true });
+                return;
+            }
+            if (windowStartInput.value === windowEndInput.value) {
+                event.preventDefault();
+                var sameDatesMessage = "Fatura Aralığı başlangıç ve bitiş tarihi aynı olamaz.";
+                window.AppUI.showFieldError(windowEndInput, sameDatesMessage);
+                window.AppUI.showToast(sameDatesMessage, "error");
+                windowEndInput.scrollIntoView({ behavior: "smooth", block: "center" });
+                windowEndInput.focus({ preventScroll: true });
+                return;
+            }
+            if (windowEndInput.value > todayIso) {
+                event.preventDefault();
+                var futureEndMessage = "Fatura Aralığı bitiş tarihi gelecekte bir tarih olamaz.";
+                window.AppUI.showFieldError(windowEndInput, futureEndMessage);
+                window.AppUI.showToast(futureEndMessage, "error");
+                windowEndInput.scrollIntoView({ behavior: "smooth", block: "center" });
+                windowEndInput.focus({ preventScroll: true });
+                return;
+            }
+        }
+
         var startInputs = form.querySelectorAll('input[name^="energy_start_"]');
         for (var i = 0; i < startInputs.length; i++) {
             var startInput = startInputs[i];
@@ -203,6 +239,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             type="date"
                             name="window_start"
                             value="{{ window_start }}"
+                            max="{% now 'Y-m-d' %}"
                             required>
 
                 </div>
@@ -215,6 +252,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             type="date"
                             name="window_end"
                             value="{{ window_end }}"
+                            max="{% now 'Y-m-d' %}"
                             required>
 
                 </div>

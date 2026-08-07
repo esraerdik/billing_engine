@@ -24,8 +24,11 @@ logger = logging.getLogger(__name__)
 
 from .exceptions import (
     ComplexAccessDeniedError,
+    FutureBillingWindowEndError,
+    FutureBillingWindowStartError,
     InvalidBillingWindowError,
     InvalidEnergyReadingError,
+    SameBillingWindowDatesError,
 )
 from .models import (
     ApprovalRequest,
@@ -393,8 +396,10 @@ def delete_apartment(user: AbstractBaseUser, apartment_id: int) -> bool:
 def _validate_billing_window(window_start: date, window_end: date) -> None:
     """Fatura aralığının KENDİ İÇİNDE tutarlı olduğunu doğrular.
 
-    Tek kural: `window_start`, `window_end`'den sonra olamaz. Tarih
-    aralığının geçmiş faturalandırmalarla ÇAKIŞIP çakışmadığı burada
+    Kurallar: `window_start` gelecekte bir tarih olamaz; `window_start`,
+    `window_end`'den sonra olamaz; ikisi birbirine eşit olamaz; `window_end`
+    gelecekte bir tarih olamaz. Tarih aralığının geçmiş faturalandırmalarla
+    ÇAKIŞIP çakışmadığı burada
     KONTROL EDİLMEZ ve bir çakışma artık asla sessizce/sert biçimde
     reddedilmez — çakışma, yeniden faturalandırma (admin onay) akışını
     TETİKLER (bkz. `_overlapping_runs_exist` ve
@@ -408,8 +413,15 @@ def _validate_billing_window(window_start: date, window_end: date) -> None:
     `BillingCalculator._validate`'in "önce genel/global koşullar"
     prensibiyle aynı mantık.
     """
+    today = timezone.localdate()
+    if window_start > today:
+        raise FutureBillingWindowStartError(window_start, today)
     if window_start > window_end:
         raise InvalidBillingWindowError(window_start, window_end)
+    if window_start == window_end:
+        raise SameBillingWindowDatesError(window_start)
+    if window_end > today:
+        raise FutureBillingWindowEndError(window_end, today)
 
 
 def _overlapping_runs_exist(

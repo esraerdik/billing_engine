@@ -35,8 +35,8 @@ from accounts.services import (
     update_user,
 )
 from billing.exceptions import (
+    BillingWindowError,
     ComplexAccessDeniedError,
-    InvalidBillingWindowError,
     InvalidEnergyReadingError,
 )
 from billing.models import (
@@ -264,7 +264,7 @@ def user_dashboard(request):
         except ComplexAccessDeniedError as exc:
             context["error"] = str(exc)
 
-        except InvalidBillingWindowError as exc:
+        except BillingWindowError as exc:
             context["error"] = str(exc)
 
         except InvalidEnergyReadingError as exc:
