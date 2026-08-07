@@ -47,7 +47,6 @@ _SHEET_TITLE = "Fatura Özeti"
 # çalışmaya devam eder.
 _COLUMNS: list[tuple[str, str, str | None]] = [
     ("complex_name", "Apartman", None),
-    ("block", "Blok", None),
     ("unit_no", "Daire No", None),
     ("resident_name", "Kullanıcı / Malik", None),
     ("area_m2", "Alan (m²)", _NUMBER_FORMAT),
@@ -59,7 +58,7 @@ _COLUMNS: list[tuple[str, str, str | None]] = [
     ("total_payable", "Toplam Ödenecek Tutar", _CURRENCY_FORMAT),
 ]
 
-_TEXT_FIELDS = {"complex_name", "block", "unit_no", "resident_name"}
+_TEXT_FIELDS = {"complex_name", "unit_no", "resident_name"}
 
 
 def _validate_columns() -> None:

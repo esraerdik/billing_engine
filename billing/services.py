@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 from .exceptions import (
     ComplexAccessDeniedError,
+    DuplicateApartmentUnitError,
     FutureBillingWindowEndError,
     FutureBillingWindowStartError,
     InvalidBillingWindowError,
@@ -282,9 +283,15 @@ def create_apartment(
     # (ComplexAccess) bir binaya daire ekleyebilir. Arayüzden gizlemek
     # yeterli değildir — form/URL manipüle edilse bile burada reddedilir.
     _ensure_complex_access(user, complex_id)
+    unit_no = unit_no.strip()
+    # Veritabanı kısıtına (`uniq_apartment_unit_per_complex`) çarpıp
+    # IntegrityError almadan önce kontrollü doğrulama — bkz.
+    # DuplicateApartmentUnitError.
+    if Apartment.objects.filter(complex_id=complex_id, unit_no=unit_no).exists():
+        raise DuplicateApartmentUnitError(unit_no)
     apartment = Apartment.objects.create(
         complex_id=complex_id,
-        unit_no=unit_no.strip(),
+        unit_no=unit_no,
         block=block.strip() if block else "",
         area_m2=_to_decimal(area_m2),
     )
@@ -329,8 +336,18 @@ def update_apartment(
     # daireyi yetkisiz bir binaya taşıyamaz.
     _ensure_complex_access(user, apartment.complex_id)
     _ensure_complex_access(user, complex_id)
+    unit_no = unit_no.strip()
+    # bkz. create_apartment — aynı kontrol burada da, dairenin KENDİSİ
+    # hariç tutularak (numarasını değiştirmeden kaydetmek çakışma
+    # sayılmamalı).
+    if (
+        Apartment.objects.filter(complex_id=complex_id, unit_no=unit_no)
+        .exclude(pk=apartment.pk)
+        .exists()
+    ):
+        raise DuplicateApartmentUnitError(unit_no)
     apartment.complex_id = complex_id
-    apartment.unit_no = unit_no.strip()
+    apartment.unit_no = unit_no
     apartment.block = block.strip() if block else ""
     apartment.area_m2 = _to_decimal(area_m2)
     apartment.is_active = is_active

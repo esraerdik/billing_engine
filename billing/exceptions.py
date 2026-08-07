@@ -115,6 +115,25 @@ class InvalidEnergyReadingError(Exception):
         )
 
 
+class DuplicateApartmentUnitError(Exception):
+    """Aynı bina içinde zaten var olan bir daire numarası tekrar
+    girildiğinde (ekleme veya başka bir daireyi bu numaraya taşıyacak
+    şekilde düzenleme) fırlatılır.
+
+    `Apartment` modelindeki `uniq_apartment_unit_per_complex` kısıtına
+    (bkz. billing/models.py) veritabanı seviyesinde ÇARPIP `IntegrityError`
+    almadan ÖNCE, burada kontrollü şekilde doğrulanır — kullanıcıya
+    sunucu hata sayfası yerine anlaşılır bir mesaj verilebilsin diye.
+    """
+
+    def __init__(self, unit_no: str) -> None:
+        self.unit_no = unit_no
+        super().__init__(
+            f"“{unit_no}” daire numarası bu binada zaten kullanılıyor. "
+            "Lütfen farklı bir daire numarası girin."
+        )
+
+
 class ApartmentInUseError(Exception):
     """Daire silinmek istendiğinde, kendisine bağlı (sayaç, fatura satırı
     vb. `PROTECT` ilişkili) kayıtlar bulunduğu için silme işlemi

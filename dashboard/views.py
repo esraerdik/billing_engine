@@ -9,6 +9,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django.db import IntegrityError
 from django.db.models import CharField, Q
 from django.db.models.functions import Cast
 from django.http import FileResponse, Http404, HttpResponse
@@ -37,6 +38,7 @@ from accounts.services import (
 from billing.exceptions import (
     BillingWindowError,
     ComplexAccessDeniedError,
+    DuplicateApartmentUnitError,
     InvalidEnergyReadingError,
 )
 from billing.models import (
@@ -248,7 +250,25 @@ def user_dashboard(request):
                 total_bill=total_bill,
                 manual_energy=manual_energy or None,
             )
-            context["results"] = summary.results
+            # `ApartmentBillingResult.apartment_id` (domain katmanı) aslında
+            # `Apartment.pk`'dir — kullanıcıya gösterilecek gerçek daire
+            # numarası (`unit_no`) değildir (PDF bunu `ApartmentBillingLine.
+            # apartment.unit_no`'dan okur, bkz. invoice_pdf/service.py). Sonuç
+            # listesi/sırası/değerleri değişmeden, template'e sadece görünüm
+            # için `unit_no` eklenmiş bir kopya geçiriyoruz.
+            unit_no_by_apartment_id = {
+                row.apartment_id: row.unit_no for row in apartment_rows
+            }
+            context["results"] = [
+                {
+                    "apartment_id": result.apartment_id,
+                    "unit_no": unit_no_by_apartment_id.get(result.apartment_id),
+                    "fixed_share": result.fixed_share,
+                    "consumption_share": result.consumption_share,
+                    "total_payable": result.total_payable,
+                }
+                for result in summary.results
+            ]
             context["billing_run_id"] = billing_run.id
             is_rebilling = hasattr(billing_run, "approval_request")
             record_request(
@@ -647,6 +667,18 @@ def add_apartment(request):
                     str(exc),
                     extra_tags="field-complex_id",
                 )
+            except DuplicateApartmentUnitError as exc:
+                messages.error(request, str(exc), extra_tags="field-unit_no")
+            except IntegrityError:
+                # Ek güvenlik ağı: eşzamanlı iki istek aynı numarayı üstteki
+                # kontrolden hemen sonra göndermeye çalışırsa veritabanı
+                # kısıtı burada devreye girer — 500 sayfasına asla düşülmez.
+                messages.error(
+                    request,
+                    "Bu daire numarası zaten kullanılmaktadır. Lütfen "
+                    "farklı bir daire numarası giriniz.",
+                    extra_tags="field-unit_no",
+                )
             except (ValueError, InvalidOperation):
                 messages.error(
                     request,
@@ -704,6 +736,16 @@ def edit_apartment(request, apartment_id):
                     request,
                     str(exc),
                     extra_tags="field-complex_id",
+                )
+            except DuplicateApartmentUnitError as exc:
+                messages.error(request, str(exc), extra_tags="field-unit_no")
+            except IntegrityError:
+                # bkz. add_apartment — eşzamanlı istek güvenlik ağı.
+                messages.error(
+                    request,
+                    "Bu daire numarası zaten kullanılmaktadır. Lütfen "
+                    "farklı bir daire numarası giriniz.",
+                    extra_tags="field-unit_no",
                 )
             except (ValueError, InvalidOperation):
                 messages.error(

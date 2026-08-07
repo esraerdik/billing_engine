@@ -307,7 +307,6 @@ class ExcelTests(unittest.TestCase):
             headers,
             [
                 "Apartman",
-                "Blok",
                 "Daire No",
                 "Kullanıcı / Malik",
                 "Alan (m²)",
@@ -332,23 +331,23 @@ class ExcelTests(unittest.TestCase):
         sheet = workbook.active
 
         self.assertEqual(sheet.max_row, 4)  # 1 başlık + 3 daire
-        unit_no_values = [sheet.cell(row=r, column=3).value for r in range(2, 5)]
+        unit_no_values = [sheet.cell(row=r, column=2).value for r in range(2, 5)]
         self.assertEqual(unit_no_values, ["1", "2", "3"])
-        total_values = [sheet.cell(row=r, column=11).value for r in range(2, 5)]
+        total_values = [sheet.cell(row=r, column=10).value for r in range(2, 5)]
         self.assertEqual(total_values, [1000.0, 2000.0, 3000.0])
 
     def test_currency_columns_use_tl_number_format(self) -> None:
         workbook = build_summary_workbook([_sample_summary_row()])
         sheet = workbook.active
-        # Sabit=9, Tüketim=10, Toplam=11.
-        for col in (9, 10, 11):
+        # Sabit=8, Tüketim=9, Toplam=10.
+        for col in (8, 9, 10):
             self.assertIn("TL", sheet.cell(row=2, column=col).number_format)
 
     def test_numeric_columns_use_two_decimal_number_format(self) -> None:
         workbook = build_summary_workbook([_sample_summary_row()])
         sheet = workbook.active
-        # Alan = 5, İlk Enerji = 6, Son Enerji = 7, Tüketim = 8.
-        for col in (5, 6, 7, 8):
+        # Alan = 4, İlk Enerji = 5, Son Enerji = 6, Tüketim = 7.
+        for col in (4, 5, 6, 7):
             self.assertEqual(sheet.cell(row=2, column=col).number_format, "#,##0.00")
 
     def test_missing_energy_values_leave_cell_blank_not_dash(self) -> None:
@@ -357,16 +356,15 @@ class ExcelTests(unittest.TestCase):
         )
         workbook = build_summary_workbook([row])
         sheet = workbook.active
+        self.assertIsNone(sheet.cell(row=2, column=5).value)
         self.assertIsNone(sheet.cell(row=2, column=6).value)
         self.assertIsNone(sheet.cell(row=2, column=7).value)
-        self.assertIsNone(sheet.cell(row=2, column=8).value)
 
     def test_missing_text_fields_render_as_dash(self) -> None:
-        row = _sample_summary_row(block="", resident_name=None)
+        row = _sample_summary_row(resident_name=None)
         workbook = build_summary_workbook([row])
         sheet = workbook.active
-        self.assertEqual(sheet.cell(row=2, column=2).value, "—")
-        self.assertEqual(sheet.cell(row=2, column=4).value, "—")
+        self.assertEqual(sheet.cell(row=2, column=3).value, "—")
 
     def test_column_widths_are_autosized(self) -> None:
         rows = [_sample_summary_row(complex_name="Çok Uzun Bir Apartman Adı A.Ş.")]
@@ -392,7 +390,7 @@ class ExcelTests(unittest.TestCase):
         )
         workbook = build_summary_workbook([row])
         sheet = workbook.active
-        self.assertEqual(sheet.cell(row=2, column=11).value, 999.99)
+        self.assertEqual(sheet.cell(row=2, column=10).value, 999.99)
 
 
 @override_settings()
@@ -525,13 +523,10 @@ class InvoicePdfServiceTests(TestCase):
         sheet = workbook.active
         self.assertEqual(sheet.max_row, 1 + len(self.apartments))
 
-        unit_nos = [sheet.cell(row=r, column=3).value for r in range(2, sheet.max_row + 1)]
+        unit_nos = [sheet.cell(row=r, column=2).value for r in range(2, sheet.max_row + 1)]
         self.assertEqual(sorted(unit_nos), ["1", "2", "3"])
 
-        blocks = [sheet.cell(row=r, column=2).value for r in range(2, sheet.max_row + 1)]
-        self.assertTrue(all(b == "A Blok" for b in blocks))
-
-        totals = [sheet.cell(row=r, column=11).value for r in range(2, sheet.max_row + 1)]
+        totals = [sheet.cell(row=r, column=10).value for r in range(2, sheet.max_row + 1)]
         self.assertEqual(totals, [1000.0, 1000.0, 1000.0])
 
     def test_build_summary_rows_for_run_matches_persisted_lines(self) -> None:
